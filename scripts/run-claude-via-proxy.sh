@@ -38,7 +38,7 @@ export ANTHROPIC_DEFAULT_OPUS_MODEL="claude-4.5-sonnet-cc"
 export ANTHROPIC_DEFAULT_SONNET_MODEL="claude-4.5-sonnet-cc"
 export ANTHROPIC_DEFAULT_HAIKU_MODEL="claude-4.5-sonnet-cc"
 export CLAUDE_CODE_SUBAGENT_MODEL="claude-4.5-sonnet-cc"
-export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"
+#export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"
 
 echo "[proxy-wrapper] proxy ready, launching Claude Code..."
 claude "$@"

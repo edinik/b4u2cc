@@ -21,9 +21,10 @@ export class SSEWriter {
       });
       return false;
     }
-    await logRequest(this.requestId, "debug", "Sending downstream SSE event", {
+    // 不要阻塞在日志写入上，否则会拖慢流式下发；日志异步写入即可
+    logRequest(this.requestId, "debug", "Sending downstream SSE event", {
       event: event.event,
-      dataPreview: JSON.stringify(event.data).slice(0, 2048),
+      dataPreview: JSON.stringify(event.data).slice(0, 20480),
     });
     const payload = `event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`;
     
@@ -43,11 +44,16 @@ export class SSEWriter {
       } catch (error) {
         if (retry === maxRetries - 1) {
           this.closed = true;
-          await logRequest(this.requestId, "error", "Failed to enqueue SSE payload after retries", {
-            error: error instanceof Error ? error.message : String(error),
-            event: event.event,
-            retries: retry + 1,
-          });
+          await logRequest(
+            this.requestId,
+            "error",
+            "Failed to enqueue SSE payload after retries",
+            {
+              error: error instanceof Error ? error.message : String(error),
+              event: event.event,
+              retries: retry + 1,
+            },
+          );
           return false;
         }
         await logRequest(this.requestId, "warn", "SSE enqueue failed, retrying", {

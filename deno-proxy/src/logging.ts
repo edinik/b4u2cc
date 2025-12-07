@@ -39,6 +39,7 @@ export async function closeRequestLog(requestId: string) {
 export async function logRequest(requestId: string, level: LogLevel, message: string, meta?: Record<string, unknown>) {
   if (levelOrder[level] < levelOrder[configuredLevel]) return;
   
+  const timestamp = new Date().toISOString();
   const levelTag = `[${level.toUpperCase()}]`.padEnd(7);
   
   // Format metadata, exclude requestId and timestamp
@@ -65,7 +66,7 @@ export async function logRequest(requestId: string, level: LogLevel, message: st
     }
   }
   
-  const line = `${levelTag} ${message}${metaStr}\n`;
+  const line = `${timestamp} ${levelTag} ${message}${metaStr}\n`;
   
   try {
     const file = await getRequestLogFile(requestId);

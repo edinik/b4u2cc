@@ -36,7 +36,10 @@ IMPORTANT RULES:
   - No additional text may be added after the closing </invoke> tag.
   - Parameters must retain punctuation (including hyphen prefixes) exactly as defined.
   - Encode arrays and objects in JSON before placing inside <parameter>.
-  - Be concise when not using tools.`;
+  - Be concise when not using tools.
+  - 在调用工具后会得到工具调用结果，所以请在一次工具调用得到结果后再调用下一个。
+  
+  `;
 
 function escapeText(text: string): string {
   return text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -87,16 +90,16 @@ export interface PromptInjectionResult {
   triggerSignal?: string;
 }
 
-export function injectPrompt(request: OpenAIChatRequest, tools: ClaudeToolDefinition[]): PromptInjectionResult {
+export function injectPrompt(request: OpenAIChatRequest, tools: ClaudeToolDefinition[], triggerSignal?: string): PromptInjectionResult {
   if (!tools.length) {
     // 无工具时直接透传用户/系统消息，不注入任何工具指令
     return { messages: request.messages };
   }
 
-  const triggerSignal = randomTriggerSignal();
+  const signal = triggerSignal ?? randomTriggerSignal();
   const toolsXml = buildToolsXml(tools);
   const template = DEFAULT_TEMPLATE
-    .replaceAll("{trigger_signal}", triggerSignal)
+    .replaceAll("{trigger_signal}", signal)
     .replace("{tools_list}", toolsXml);
 
   const messages: OpenAIChatMessage[] = [
@@ -104,5 +107,5 @@ export function injectPrompt(request: OpenAIChatRequest, tools: ClaudeToolDefini
     ...request.messages,
   ];
 
-  return { messages, triggerSignal };
+  return { messages, triggerSignal: signal };
 }

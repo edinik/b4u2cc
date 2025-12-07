@@ -9,6 +9,7 @@ import { ClaudeStream } from "./openai_to_claude.ts";
 import { SSEWriter } from "./sse.ts";
 import { ClaudeRequest } from "./types.ts";
 import { RateLimiter } from "./rate_limiter.ts";
+import { randomTriggerSignal } from "./signals.ts";
 
 function extractDeltaText(delta: Record<string, unknown> | undefined): string {
   if (!delta) return "";
@@ -72,8 +73,10 @@ async function handleMessages(req: Request, requestId: string) {
   }
 
   try {
-    const openaiBase = mapClaudeToOpenAI(body, config);
-    const injected = injectPrompt(openaiBase, body.tools ?? []);
+    // 如果有工具，先生成统一的触发信号
+    const triggerSignal = (body.tools ?? []).length > 0 ? randomTriggerSignal() : undefined;
+    const openaiBase = mapClaudeToOpenAI(body, config, triggerSignal);
+    const injected = injectPrompt(openaiBase, body.tools ?? [], triggerSignal);
     const upstreamReq = { ...openaiBase, messages: injected.messages };
 
     await rateLimiter.acquire();
@@ -113,7 +116,8 @@ async function handleMessages(req: Request, requestId: string) {
             const { value, done } = await reader.read();
             if (done) break;
             const text = decoder.decode(value, { stream: true });
-            await logRequest(requestId, "debug", "Upstream stream chunk", {
+            // 这里的调试日志量非常大，如果使用 await 会严重拖慢流式转发
+            logRequest(requestId, "debug", "Upstream stream chunk", {
               chunkPreview: text,
               chunkLength: text.length,
             });
@@ -136,13 +140,14 @@ async function handleMessages(req: Request, requestId: string) {
               }
               try {
                 const json = JSON.parse(payload);
-                await logRequest(requestId, "debug", "Parsed upstream SSE event", {
+                // 同样避免在解析后的调试日志上阻塞流式
+                logRequest(requestId, "debug", "Parsed upstream SSE event", {
                   fullEvent: json,
                   choices: json?.choices,
                 });
                 const delta = json?.choices?.[0]?.delta;
                 const deltaText = extractDeltaText(delta);
-                await logRequest(requestId, "debug", "Extracted delta text", {
+                logRequest(requestId, "debug", "Extracted delta text", {
                   deltaText,
                   deltaTextLength: deltaText.length,
                   rawDelta: delta,
